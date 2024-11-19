@@ -1,0 +1,758 @@
+<html><head><base href=".">
+<title>3D Robotic Arm Direct Kinematics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Roboto', sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  }
+  
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 30px;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    border-radius: 25px;
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(20px);
+  }
+  
+  h1 {
+    text-align: center;
+    color: #66fcf1;
+    font-size: 3.2em;
+    margin-bottom: 40px;
+    text-shadow: 0 0 20px rgba(102,252,241,0.5);
+    letter-spacing: 2px;
+  }
+  
+  .robot-arm {
+    width: 100%;
+    height: 550px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    border: 2px solid rgba(102,252,241,0.3);
+  }
+
+  #renderer-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .controls-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-top: 25px;
+    gap: 40px; /* Increased gap between elements */
+  }
+
+  .segment-controls {
+    flex: 0 0 auto;
+    padding: 20px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 10px;
+  }
+
+  .coordinates {
+    flex: 0 1 auto; /* Change from flex: 1 to flex: 0 1 auto */
+    padding: 20px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 10px;
+  }
+
+  .coordinates h3 {
+    margin: 0; /* Remove margin since it will be inline */
+    color: #66fcf1;
+    display: inline-block; /* Make title inline */
+    margin-right: 15px; /* Space between title and coordinates */
+  }
+
+  .coordinates .position-display {
+    display: inline-flex; /* Change to inline-flex */
+    align-items: center;
+    gap: 20px;
+    font-size: 1.1em;
+  }
+
+  .angles-section {
+    margin-top: 25px;
+    padding: 20px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 10px;
+  }
+
+  .angles-section h3 {
+    color: #66fcf1;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+  }
+
+  .angles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr)); /* Reduced from 60px */
+    gap: 15px; /* Reduced from 20px */
+    padding: 10px;
+  }
+
+  .angle-input-group {
+    background: rgba(0,0,0,0.2);
+    padding: 8px; /* Reduced from 10px */
+    border-radius: 8px;
+    border: 1px solid rgba(102,252,241,0.2);
+  }
+
+  .angle-input-group label {
+    color: #66fcf1;
+    font-size: 1em; /* Reduced from 1.1em */
+    font-weight: bold;
+    margin-bottom: 6px; /* Reduced from 8px */
+    display: block;
+    text-align: center;
+  }
+
+  .angle-input-group input {
+    width: 70%; /* Reduced from 80% */
+    margin: 0 auto;
+    display: block;
+    padding: 4px; /* Reduced from 6px */
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(102,252,241,0.4); /* Reduced border thickness */
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 0.85em; /* Reduced font size */
+    text-align: center;
+  }
+
+  .angle-input-group input:focus {
+    border-color: #66fcf1;
+    outline: none;
+    box-shadow: 0 0 10px rgba(102,252,241,0.3);
+  }
+
+  .lengths-section {
+    margin-top: 25px;
+    padding: 20px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 10px;
+  }
+
+  .lengths-section h3 {
+    color: #66fcf1;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+  }
+
+  .lengths-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 15px;
+    padding: 10px;
+  }
+
+  .length-input-group {
+    background: rgba(0,0,0,0.2);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(102,252,241,0.2);
+  }
+
+  .length-input-group label {
+    color: #66fcf1;
+    font-size: 1em;
+    font-weight: bold;
+    margin-bottom: 6px;
+    display: block;
+    text-align: center;
+  }
+
+  .length-input-group input {
+    width: 70%;
+    margin: 0 auto;
+    display: block;
+    padding: 4px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(102,252,241,0.4);
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 0.85em;
+    text-align: center;
+  }
+
+  .axes-section {
+    margin-top: 25px;
+    padding: 20px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 10px;
+  }
+
+  .axes-section h3 {
+    color: #66fcf1;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+  }
+
+  .axes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 15px;
+    padding: 10px;
+  }
+
+  .axis-input-group {
+    background: rgba(0,0,0,0.2);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(102,252,241,0.2);
+  }
+
+  .axis-input-group label {
+    color: #66fcf1;
+    font-size: 1em;
+    font-weight: bold;
+    margin-bottom: 6px;
+    display: block;
+    text-align: center;
+  }
+
+  .axis-input-group select {
+    width: 70%; /* Changed from 80% to 70% to match other inputs */
+    margin: 0 auto;
+    display: block;
+    padding: 4px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(102,252,241,0.4);
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 0.85em;
+    text-align: center;
+  }
+
+  button {
+    padding: 15px 25px;
+    background: linear-gradient(135deg, #45a29e 0%, #66fcf1 100%);
+    color: #0b0c10;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    box-shadow: 0 6px 20px rgba(69,162,158,0.4);
+    font-size: 1em;
+  }
+  
+  button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(69,162,158,0.5);
+    background: linear-gradient(135deg, #66fcf1 0%, #45a29e 100%);
+  }
+  
+  button:active {
+    transform: translateY(2px);
+    box-shadow: 0 3px 10px rgba(69,162,158,0.3);
+  }
+
+  @media (max-width: 768px) {
+    .container {
+      padding: 15px;
+    }
+    
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 25px;
+    }
+    
+    .robot-arm {
+      height: 400px;
+    }
+    
+    .segment-controls, .angles-section, .coordinates, .lengths-section, .axes-section {
+      padding: 15px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 0.9em;
+    }
+  }
+
+  .warning-message {
+    color: #ff6b6b;
+    display: inline-block;
+    margin-left: 15px;
+    padding: 5px 10px;
+    background: rgba(255,107,107,0.1);
+    border-radius: 8px;
+    font-size: 0.9em;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>3D Robotic Arm Direct Kinematics</h1>
+  
+  <div class="robot-arm">
+    <div id="renderer-container"></div>
+  </div>
+
+  <div class="controls-row">
+    <div class="segment-controls">
+      <label for="segmentCount">Number of Links (1-10):</label>
+      <input type="number" id="segmentCount" value="2" min="1" max="10" step="1" oninput="updateSegmentCount()" aria-label="Number of links">
+    </div>
+    
+    <div class="coordinates" style="margin-left: auto;">
+      <h3>End Effector Position (cm):</h3>
+      <div class="position-display">
+        <span>X: <span id="pos-x" class="position-value">0</span></span>
+        <span>Y: <span id="pos-y" class="position-value">0</span></span>
+        <span>Z: <span id="pos-z" class="position-value">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="axes-container" class="input-group" style="max-width: 800px; margin: 20px auto;">
+    <div class="axes-section">
+      <div style="display: flex; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0;">Rotation Axes Configuration</h3>
+        <div class="warning-message">
+          Warning: Changing rotation axes will reset the robot to its initial position
+        </div>
+      </div>
+      <div class="axes-grid">
+        <!-- Axes inputs will be generated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <div id="angles-container" class="input-group" style="max-width: 800px; margin: 20px auto;">
+    <div class="angles-section">
+      <h3>Joint Angles (degrees)</h3>
+      <div class="angles-grid" style="grid-template-columns: repeat(auto-fit, minmax(50px, 1fr)); max-width: 100%;">
+        <!-- Angles inputs will be generated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <div id="lengths-container" class="input-group" style="max-width: 800px; margin: 20px auto;">
+    <div class="lengths-section">
+      <h3>Link Lengths (cm)</h3>
+      <div class="lengths-grid" style="grid-template-columns: repeat(auto-fit, minmax(50px, 1fr)); max-width: 100%;">
+        <!-- Lengths inputs will be generated dynamically -->
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SEGMENT_LENGTH = 15; // Longitud de cada segmento en cm
+let segments = [];
+let angles = [];
+let segmentLengths = [];
+let rotationAxes = []; // Will store 'x', 'y', or 'z' for each joint
+let scene, camera, renderer, controls;
+const robotGroup = new THREE.Group();
+
+function init3D() {
+  // Setup scene
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x16213e);
+
+  // Setup camera
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera.position.set(40, 40, 40); // Changed from 400,400,400
+  camera.lookAt(0, 0, 0);
+
+  // Setup renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.getElementById('renderer-container').appendChild(renderer.domElement);
+
+  // Setup controls
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+
+  // Add lights
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // Increased intensity
+  scene.add(ambientLight);
+
+  const pointLight = new THREE.PointLight(0xffffff, 1.2); // Increased intensity
+  pointLight.position.set(20, 20, 20); // Adjusted position
+  scene.add(pointLight);
+
+  // Add second point light for better metallic effect
+  const pointLight2 = new THREE.PointLight(0xffffff, 0.8);
+  pointLight2.position.set(-20, 10, -20);
+  scene.add(pointLight2);
+
+  // Add grid helper
+  const gridHelper = new THREE.GridHelper(100, 20); // Changed from 1000
+  scene.add(gridHelper);
+
+  // Add axes helper
+  const axesHelper = new THREE.AxesHelper(30); // Changed from 300
+  scene.add(axesHelper);
+
+  scene.add(robotGroup);
+  
+  animate();
+}
+
+// Updated update3DSegments() function to apply only individual joint angle
+function update3DSegments() {
+  robotGroup.clear();
+  
+  // Create base
+  const baseGeometry = new THREE.CylinderGeometry(8, 8, 4, 32); // Adjusted dimensions
+  const baseMaterial = new THREE.MeshPhongMaterial({
+    color: 0xdddddd,
+    specular: 0x888888,
+    shininess: 100,
+    metalness: 0.8
+  });
+  const base = new THREE.Mesh(baseGeometry, baseMaterial);
+  robotGroup.add(base);
+
+  let currentGroup = robotGroup;
+  
+  segments.forEach((_, i) => {
+    // Create a new group for this segment
+    const segmentGroup = new THREE.Group();
+    
+    // Add the current segment to its group
+    const segment3D = create3DSegment(segmentLengths[i]);
+    segmentGroup.add(segment3D);
+    
+    // If this is the first segment, position it at the base
+    if (i === 0) {
+      segmentGroup.position.y = 3; // Top of base
+    }
+    
+    // Apply rotation based on selected axis
+    const angle = angles[i] * Math.PI / 180;
+    switch(rotationAxes[i]) {
+      case 'x':
+        segmentGroup.rotation.x = angle;
+        break;
+      case 'y':
+        segmentGroup.rotation.y = angle;
+        break;
+      case 'z':
+        segmentGroup.rotation.z = angle;
+        break;
+    }
+    
+    // Add this segment group to the current parent
+    currentGroup.add(segmentGroup);
+    
+    // Update for next segment
+    const nextSegmentMount = new THREE.Group();
+    nextSegmentMount.position.y = segmentLengths[i];
+    segmentGroup.add(nextSegmentMount);
+    currentGroup = nextSegmentMount;
+  });
+}
+
+function create3DSegment(length) {
+  const group = new THREE.Group();
+
+  // Create arm segment
+  const geometry = new THREE.BoxGeometry(4, length, 3); // Changed dimensions
+  const material = new THREE.MeshPhongMaterial({
+    color: 0xaaaaaa,
+    specular: 0x888888,
+    shininess: 100,
+    metalness: 0.8
+  });
+  const segment = new THREE.Mesh(geometry, material);
+  segment.position.y = length / 2;
+  
+  // Create joint at origin
+  const jointGeometry = new THREE.SphereGeometry(3, 32, 32); // Increased from 2
+  const jointMaterial = new THREE.MeshPhongMaterial({
+    color: 0xff6634,
+    specular: 0xffffff,
+    shininess: 100
+  });
+  const joint = new THREE.Mesh(jointGeometry, jointMaterial);
+  
+  group.add(segment);
+  group.add(joint);
+  
+  return group;
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// Modify updateAngles() to call update3DSegments()
+const originalUpdateAngles = updateAngles;
+updateAngles = function() {
+  originalUpdateAngles();
+  update3DSegments();
+}
+
+// Modify initialize()
+function initialize() {
+  createSegments(2);
+  init3D();
+  updateAngles();
+}
+
+function createSegments(count) {
+  const wrapper = document.getElementById('renderer-container');
+  segments = []; // Clear segments array
+  
+  angles = new Array(count).fill(0);
+  segmentLengths = new Array(count).fill(15); // Default length of 15cm
+  rotationAxes = new Array(count).fill('z'); // Default to Z axis rotation
+
+  for (let i = 0; i < count; i++) {
+    const segment = document.createElement('div');
+    segment.className = 'segment';
+    segment.id = `segment${i}`;
+    segments.push(segment);
+  }
+
+  updateAnglesInputs(count);
+  updateLengthsInputs(count);
+  updateAxesInputs(count); // Initialize axes inputs
+}
+
+function updateAnglesInputs(count) {
+  const container = document.getElementById('angles-container');
+  container.className = 'angles-section';
+  container.innerHTML = `
+    <h3>Joint Angles (degrees)</h3>
+    <div class="angles-grid"></div>
+  `;
+  
+  const grid = container.querySelector('.angles-grid');
+  
+  for (let i = 0; i < count; i++) {
+    const div = document.createElement('div');
+    div.className = 'angle-input-group';
+    
+    const input = document.createElement('input');
+    const label = document.createElement('label');
+    
+    label.textContent = `J${i + 1}`; // Simplified label
+    label.setAttribute('for', `input-angle${i}`);
+    
+    input.type = 'number';
+    input.id = `input-angle${i}`;
+    input.value = '0';
+    input.min = '-90';
+    input.max = '90';
+    input.step = '1';
+    input.addEventListener('input', updateAngles);
+    input.setAttribute('aria-label', `Joint ${i + 1} angle`);
+    
+    div.appendChild(label);
+    div.appendChild(input);
+    grid.appendChild(div);
+  }
+}
+
+function updateLengthsInputs(count) {
+  const container = document.getElementById('lengths-container');
+  container.className = 'lengths-section';
+  container.innerHTML = `
+    <h3>Link Lengths (cm)</h3>
+    <div class="lengths-grid"></div>
+  `;
+  
+  const grid = container.querySelector('.lengths-grid');
+  
+  for (let i = 0; i < count; i++) {
+    const div = document.createElement('div');
+    div.className = 'length-input-group';
+    
+    const input = document.createElement('input');
+    const label = document.createElement('label');
+    
+    label.textContent = `L${i + 1}`;
+    label.setAttribute('for', `input-length${i}`);
+    
+    input.type = 'number';
+    input.id = `input-length${i}`;
+    input.value = segmentLengths[i];
+    input.min = '1';  // Changed from 10 to 1
+    input.max = '100'; // Changed from 1000 to 100
+    input.step = '1';  // Changed from 10 to 1
+    input.addEventListener('input', updateLengths);
+    input.setAttribute('aria-label', `Link ${i + 1} length`);
+    
+    div.appendChild(label);
+    div.appendChild(input);
+    grid.appendChild(div);
+  }
+}
+
+// Add this function
+function updateAxesInputs(count) {
+  const container = document.getElementById('axes-container');
+  const grid = container.querySelector('.axes-grid');
+  grid.innerHTML = ''; // Clear existing inputs
+  
+  rotationAxes = new Array(count).fill('z'); // Default to Z axis rotation
+  
+  for (let i = 0; i < count; i++) {
+    const div = document.createElement('div');
+    div.className = 'axis-input-group';
+    
+    const select = document.createElement('select');
+    const label = document.createElement('label');
+    
+    label.textContent = `J${i + 1}`; // Changed from "J${i + 1} Axis" to just "J${i + 1}"
+    label.setAttribute('for', `input-axis${i}`);
+    
+    select.id = `input-axis${i}`;
+    ['x', 'y', 'z'].forEach(axis => {
+      const option = document.createElement('option');
+      option.value = axis;
+      option.textContent = axis.toUpperCase();
+      if (axis === 'z') option.selected = true;
+      select.appendChild(option);
+    });
+    
+    select.addEventListener('change', (e) => {
+      rotationAxes[i] = e.target.value;
+      resetRobot();
+    });
+    
+    div.appendChild(label);
+    div.appendChild(select);
+    grid.appendChild(div);
+  }
+}
+
+// Add reset function
+function resetRobot() {
+  // Reset all angles to 0
+  angles = new Array(segments.length).fill(0);
+  
+  // Update angle inputs
+  for (let i = 0; i < segments.length; i++) {
+    const input = document.getElementById(`input-angle${i}`);
+    if (input) input.value = '0';
+  }
+  
+  // Update 3D visualization
+  update3DSegments();
+}
+
+// Add function to update lengths
+function updateLengths() {
+  const count = segments.length;
+  for (let i = 0; i < count; i++) {
+    const input = document.getElementById(`input-length${i}`);
+    const length = input ? parseFloat(input.value) || 15 : 15;
+    segmentLengths[i] = Math.max(1, Math.min(100, length));
+  }
+  updateAngles();
+}
+
+// Modify updateAngles to use new lengths
+function updateAngles() {
+  const count = segments.length;
+  const newAngles = [];
+  
+  // Collect all angles first
+  for (let i = 0; i < count; i++) {
+    const input = document.getElementById(`input-angle${i}`);
+    const angle = input ? parseFloat(input.value) || 0 : 0;
+    newAngles.push(Math.max(-90, Math.min(90, angle)));
+  }
+
+  angles = newAngles;
+  
+  // Update segment positions and rotations
+  // The previous implementation has been replaced with the corrected one
+  update3DSegments();
+  
+  // Update end effector position display
+  const position = calculateEndEffectorPosition(angles);
+  document.getElementById('pos-x').textContent = Math.round(position.x);
+  document.getElementById('pos-y').textContent = Math.round(position.y);
+  document.getElementById('pos-z').textContent = Math.round(position.z);
+}
+
+function calculateEndEffectorPosition(angles) {
+  // Starting position
+  let position = new THREE.Vector3(0, 0, 0);
+  let currentMatrix = new THREE.Matrix4();
+  
+  // Start from base position (after the cylinder base)
+  position.y = 3;
+  
+  // For each segment
+  for (let i = 0; i < angles.length; i++) {
+    const angleRad = angles[i] * Math.PI / 180;
+    let rotationMatrix = new THREE.Matrix4();
+    
+    // Create rotation matrix based on the axis
+    switch(rotationAxes[i]) {
+      case 'x':
+        rotationMatrix.makeRotationX(angleRad);
+        break;
+      case 'y':
+        rotationMatrix.makeRotationY(angleRad);
+        break;
+      case 'z':
+        rotationMatrix.makeRotationZ(angleRad);
+        break;
+    }
+    
+    // Apply rotation
+    currentMatrix.multiply(rotationMatrix);
+    
+    // Create translation vector for this segment
+    let segmentVector = new THREE.Vector3(0, segmentLengths[i], 0);
+    segmentVector.applyMatrix4(currentMatrix);
+    
+    // Add to total position
+    position.add(segmentVector);
+  }
+  
+  return {
+    x: Math.round(position.x),
+    y: Math.round(position.y),
+    z: Math.round(position.z)
+  };
+}
+
+function updateSegmentCount() {
+  const count = parseInt(document.getElementById('segmentCount').value);
+  if (count >= 1 && count <= 10) {
+    createSegments(count);
+    updateAngles();
+  }
+}
+
+// Update the initialize function to attach the zoom listener to robot-arm
+initialize();
+</script>
+</body></html>
